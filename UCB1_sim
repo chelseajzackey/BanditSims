@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Chelsea Zackey
+UCB1 Bias Simulations
+"""
+from sympy.stats import Normal as norm
+from sympy.stats import P, E, sample
+from sympy import symbols
+from sympy.plotting import plot
+import random
+import math
+
+class Arm:
+    def __init__(self, dist):
+        self.dist = dist
+        self.pulls = self.rewards = self.emp_mean = 0
+    
+    def pull(self): #pull arm 
+        self.pulls += 1
+        this_r = sample(self.dist)
+        self.rewards += this_r
+        self.emp_mean = self.rewards / self.pulls
+        return this_r
+    
+    def compute_index(self, time): #calculate UCB1 upper bound of arm 
+        return self.emp_mean + math.sqrt(2 * math.log(time + 1) / self.pulls)
+ 
+def decide(arms, time): #return index of chosen arm  
+    play_arm = 0
+    max_index = arms[0].compute_index(time)
+    for i in range(1, len(arms)): # calculate and compare all empirical means
+        this_index = arms[i].compute_index(time)
+        if max_index < this_index:
+            max_index = this_index
+            play_arm = i
+        elif max_index == this_index: #break tie
+            tie_break = random.randint(1, 101)
+            if tie_break > 50:
+                max_index = this_index
+                play_arm = i
+    return play_arm  
+
+def exploited_arm(arms): #determine which arm bandit exploited most
+    max_arm = arms[0].pulls
+    exploited = 0
+    for i in range(1, len(arms)):
+        if max_arm < arms[i].pulls:
+            max_arm = arms[i].pulls
+            exploited = i
+    return exploited        
+
+def main():
+    time = num_arms = 5 #time counter; total number of arms
+    horizon = 500 #experiment horizon
+    arms = [] #list of all arms
+    opt_r = 0 # reward of optimal arm (for regret analysis)
+    reward = 0 # total reward
+    
+    for i in range(num_arms-1): # initialize subopt arms with same variance
+        arms.append(Arm(norm("Arm"+str(i+1), 0.5+i, 1)))
+    
+    arms.append(Arm(norm("Arm5", 4.5, 1))) #change variance of optimal arm
+    
+    for i in range(num_arms-1): #play each (suboptimal) arm once
+        reward += arms[i].pull()
+        opt_r += sample(arms[num_arms-1].dist)
+    opt_r += arms[num_arms-1].pull() #play optimal arm once - store reward aside    
+    reward += opt_r
+    
+    while(time < horizon): # employ UCB1 algorithm each following round
+        choice = decide(arms, time)
+        if choice == (num_arms-1): # if optimal arm, store sample reward aside
+            samp = arms[choice].pull()
+            reward += samp
+            opt_r += samp
+        else:    
+            reward += arms[choice].pull()
+            opt_r += sample(arms[num_arms-1].dist)
+        time += 1
+    regret = opt_r - reward
+    exploited = exploited_arm(arms)+1
+    print("Total reward: "+str(reward))
+    print("Theoretical reward from playing optimal arm each round: "+str(opt_r))
+    print("Total regret: "+str(regret))
+    print("Most exploited arm: "+str(exploited))
+    if exploited == num_arms:
+        print("Bandit successfully determined optimal arm")
+    else: 
+        print("Bandit did not successfully determine optimal arm")
