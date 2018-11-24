@@ -10,6 +10,8 @@ from sympy import symbols
 from sympy.plotting import plot
 import random
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 
 class Arm:
     def __init__(self, dist):
@@ -18,13 +20,18 @@ class Arm:
     
     def pull(self): #pull arm 
         self.pulls += 1
-        this_r = sample(self.dist)
-        self.rewards += this_r
+        samp = sample(self.dist)
+        self.rewards += samp
         self.emp_mean = self.rewards / self.pulls
-        return this_r
+        return samp
+        
     
     def compute_index(self, time): #calculate UCB1 upper bound of arm 
         return self.emp_mean + math.sqrt(2 * math.log(time + 1) / self.pulls)
+    
+    def bias(self, mu): # calculate bias of arm
+        return self.emp_mean-mu
+        
  
 def decide(arms, time): #return index of chosen arm  
     play_arm = 0
@@ -48,43 +55,108 @@ def exploited_arm(arms): #determine which arm bandit exploited most
         if max_arm < arms[i].pulls:
             max_arm = arms[i].pulls
             exploited = i
-    return exploited        
+    return exploited   
+
+def bias_stats(arms): #returns dict holding bias of empirical mean of each arm in arms
+    biases = {}
+    for i in range(len(arms)):
+        biases.update({str(i+1): arms[i].bias(0.5+i)})
+    return biases
+
 
 def main():
     time = num_arms = 5 #time counter; total number of arms
-    horizon = 500 #experiment horizon
+    horizon = 1000 #experiment horizon
     arms = [] #list of all arms
-    opt_r = 0 # reward of optimal arm (for regret analysis)
-    reward = 0 # total reward
+    reward = 0  # cumulative reward
+    regret = 0 # cumulative regret
+    # time vs regret data
+    x = [] 
+    y = []
     
+    #initialize simulation
     for i in range(num_arms-1): # initialize subopt arms with same variance
-        arms.append(Arm(norm("Arm"+str(i+1), 0.5+i, 1)))
+        arms.append(Arm(norm("Arm"+str(i+1), 0.5+i+1, 1)))
     
-    arms.append(Arm(norm("Arm5", 4.5, 1))) #change variance of optimal arm
+    arms.append(Arm(norm("Arm5", 0.5+num_arms, 1))) #change variance of optimal arm here
     
-    for i in range(num_arms-1): #play each (suboptimal) arm once
+    for i in range(num_arms): #play each arm once
         reward += arms[i].pull()
-        opt_r += sample(arms[num_arms-1].dist)
-    opt_r += arms[num_arms-1].pull() #play optimal arm once - store reward aside    
-    reward += opt_r
+        regret = ((i+1)*(0.5+num_arms)) - reward
+        x.append(i+1)
+        y.append(regret)
     
+    #run simulation
     while(time < horizon): # employ UCB1 algorithm each following round
         choice = decide(arms, time)
-        if choice == (num_arms-1): # if optimal arm, store sample reward aside
-            samp = arms[choice].pull()
-            reward += samp
-            opt_r += samp
-        else:    
-            reward += arms[choice].pull()
-            opt_r += sample(arms[num_arms-1].dist)
+        #track cumulative reward & regret
+        reward += arms[choice].pull()
+        regret = ((time+1)*(0.5+num_arms)) - reward
+        x.append(time+1)
+        y.append(regret)
         time += 1
-    regret = opt_r - reward
-    exploited = exploited_arm(arms)+1
+    
+    #simulation stats
+    plt.plot(x, y, label='optimal arm Distrbn = N(5.5, 1)')
+    plt.xlabel('Time-step t')
+    plt.ylabel('Cumulative Regret')
+    plt.title('Cumulative Regret Over Time')
+    
+    #biases = bias_stats(arms) # bias of empirical means of each arm
+    
+    # run simulation with new variance for opt arm
+    time = num_arms
+    reward = 0
+    regret = 0
+    y.clear()
+    arms.clear()
+    
+    for i in range(num_arms-1): # initialize subopt arms with same variance
+        arms.append(Arm(norm("Arm"+str(i+1), 0.5+i+1, 1)))
+    arms.append(Arm(norm("Arm5", 0.5+num_arms, 2)))
+    
+    for i in range(num_arms): #play each arm once
+        reward += arms[i].pull()
+        regret = ((i+1)*(0.5+num_arms)) - reward
+        y.append(regret)
+    
+    #run simulation
+    while(time < horizon): # employ UCB1 algorithm each following round
+        choice = decide(arms, time)
+        #track cumulative reward & regret
+        reward += arms[choice].pull()
+        regret = ((time+1)*(0.5+num_arms)) - reward
+        y.append(regret)
+        time += 1
+    plt.plot(x, y, label='optimal arm Distrbn = N(5.5, 2)')
+    plt.legend()
+    plt.show()
+    #FOR INITIAL TESTING PURPOSES
+    
+    #general statistics
+    """
+    exploited = exploited_arm(arms)+1 # bandit's selected optimal arm
+    print("===============================Simulation Stats================================")
+    print("")
     print("Total reward: "+str(reward))
-    print("Theoretical reward from playing optimal arm each round: "+str(opt_r))
+    print("")
     print("Total regret: "+str(regret))
+    print("")
     print("Most exploited arm: "+str(exploited))
+    print("")
+    
+    # print arm bias stats
+    print("===============================Arm Stats================================")
+    print("")
+    print("Arms and associated biases (on empirical means): ")
+    biases = bias_stats(arms)
+    for item in biases.items():
+        print(item)
+    
+    print("")
+    print("")
     if exploited == num_arms:
         print("Bandit successfully determined optimal arm")
     else: 
         print("Bandit did not successfully determine optimal arm")
+    """
