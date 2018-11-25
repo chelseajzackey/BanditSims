@@ -67,15 +67,15 @@ def init_arms(num_arms, arms):
     for i in range(num_arms-1): # initialize subopt arms with same variance
         arms.append(Arm(norm("Arm"+str(i+1), 0.5+i+1, 1)))
     
-    arms.append(Arm(norm("Arm5", 0.5+num_arms, 2))) #change variance of optimal arm here
+    arms.append(Arm(norm("Arm5", 0.5+num_arms, 3))) #change variance of optimal arm here
     
 
 def main():
     sim_runs = 1000 #number of simulation runs
     num_arms = 5 #total number of arms
     data_wkbk = openpyxl.Workbook() # excel workbook to contain data over all simulations 
-    #r_sheet = data_wkbk.active #regret data sheet
-    #r_sheet.title = "RegretData"
+    r_sheet = data_wkbk.active #regret data sheet
+    r_sheet.title = "RegretData"
     b_sheet = data_wkbk.create_sheet("BiasData") #bias data sheet
     
     #format heading for bias data sheet
@@ -87,25 +87,25 @@ def main():
         horizon = 500 #simulation horizon
         arms = [] #list of all arms
         reward = 0  # cumulative reward
-        #regret = 0 # cumulative regret
+        regret = 0 # cumulative regret
         
         #populate arms[]
         init_arms(num_arms, arms)    
         
         #set title of column of this simulation regret data
-        #r_sheet.cell(row = 1, column = i).value = "Sim"+str(i)
+        r_sheet.cell(row = 1, column = i).value = "Sim"+str(i)
         
         for k in range(num_arms): #play each arm once
             reward += arms[k].pull()
-            #regret = (k+1)*(0.5+num_arms)-reward
-            #r_sheet.cell(row = k+2, column = i).value = float(regret)
+            regret = (k+1)*(0.5+num_arms)-reward
+            r_sheet.cell(row = k+2, column = i).value = float(regret)
         #run rest of simulation
         while(time < horizon): # employ UCB1 algorithm each following round
             choice = decide(arms, time)
             #track cumulative reward & regret
             reward += arms[choice].pull()
-            #regret = (time+1)*(0.5+num_arms)-reward
-            #r_sheet.cell(row = time+2, column = i).value = float(regret)
+            regret = (time+1)*(0.5+num_arms)-reward
+            r_sheet.cell(row = time+2, column = i).value = float(regret)
             time += 1
         
         #output bias stats to excel sheet
@@ -115,7 +115,7 @@ def main():
         
             
     #save wkbk data
-    data_wkbk.save("/Users/edenzackey/Documents/BanditSimData/simulation.xlsx")    
+    data_wkbk.save("/Users/edenzackey/Documents/BanditSimData/simulations.xlsx")    
   
      
 #    #plot point-wise cumulative regret
