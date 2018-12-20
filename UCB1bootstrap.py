@@ -24,7 +24,7 @@ class Arm:
             self.pulls += 1
             self.rewards = np.append(self.rewards, [samp])
             self.emp_mean = self.bootstrap_emp_mean(t+1)
-        return samp       
+        return samp    
     
     def compute_index(self, time): #calculate UCB1 upper bound of arm 
         return self.emp_mean + math.sqrt(2 * math.log(time + 1) / float(self.pulls))
@@ -85,7 +85,7 @@ def init_arms(num_arms, arms):
     
 
 def main():
-    sim_runs = 1000 #number of simulation runs
+    sim_runs = 500 #number of simulation runs
     num_arms = 5 #total number of arms
     data_wkbk = openpyxl.Workbook() # excel workbook to contain data over all simulations 
     r_sheet = data_wkbk.active #regret data sheet
@@ -102,7 +102,7 @@ def main():
     #run each individual simulation
     for i in range(1, sim_runs+1):
         time = num_arms #time counter
-        horizon = 500 #simulation horizon
+        horizon = 150 #simulation horizon
         arms = [] #list of all arms
         reward = 0  # cumulative reward
         regret = 0 # cumulative regret
@@ -146,7 +146,8 @@ def main():
         #output plays data to excel sheet
         for j in range(num_arms): #print stats
             p_sheet.cell(row = i+1, column = j+1).value = float(arms[j].pulls)
-        
+    #track progress of simulations
+        print("Simulation "+str(i)+" complete.")
             
     #save wkbk data
     data_wkbk.save("/Users/edenzackey/Documents/BanditSimData/bs_simulations.xlsx")
