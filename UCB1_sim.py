@@ -70,7 +70,7 @@ def init_arms(num_arms, arms):
     for i in range(num_arms-1): # initialize subopt arms with same variance
         arms.append(Arm(norm("Arm"+str(i+1), 0.5+i+1, 1)))
     
-    arms.append(Arm(norm("Arm5", 0.5+num_arms, 3))) #change variance of optimal arm here
+    arms.append(Arm(norm("Arm5", 0.5+num_arms, 1))) #change variance of optimal arm here
     
 
 def main():
@@ -80,10 +80,14 @@ def main():
     r_sheet = data_wkbk.active #regret data sheet
     r_sheet.title = "RegretData"
     b_sheet = data_wkbk.create_sheet("BiasData") #bias data sheet
+    p_sheet = data_wkbk.create_sheet("ArmPlaysData") #data sheet for no. times each arm was selected
     
     #format heading for bias data sheet
     for i in range(num_arms):
         b_sheet.cell(row = 1, column = i+1).value = "Arm"+str(i+1)
+    #format heading for plays data sheet
+    for i in range(num_arms):
+        p_sheet.cell(row = 1, column = i+1).value = "Arm"+str(i+1)
     #run each individual simulation
     for i in range(1, sim_runs+1):
         time = num_arms #time counter
@@ -127,6 +131,10 @@ def main():
         for j in range(num_arms): #print stats
 #            b_sheet.cell(row = i+1, column = j+1).value = float(arms[j].emp_mean)
             b_sheet.cell(row = i+1, column = j+1).value = float(biases[j])
+       
+        #output plays data to excel sheet
+        for j in range(num_arms): #print stats
+            p_sheet.cell(row = i+1, column = j+1).value = float(arms[j].pulls)
         
             
     #save wkbk data
