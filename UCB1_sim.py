@@ -14,21 +14,24 @@ import openpyxl
 class Arm:
     def __init__(self, dist):
         self.dist = dist
-        self.pulls = self.rewards = self.emp_mean = 0
+        self.pulls = 0
+        self.rewards = 0
+        self.emp_mean = 0
     
-    def pull(self): #pull arm 
-        self.pulls += 1
+    def pull(self, strict=False): #pull arm 
         samp = sample(self.dist)
-        self.rewards += samp
-        self.emp_mean = self.rewards / self.pulls
+        if strict==False:
+            self.pulls += 1
+            self.rewards += samp
+            self.emp_mean = float(float(self.rewards) / float(self.pulls))
         return samp
         
     
     def compute_index(self, time): #calculate UCB1 upper bound of arm 
-        return self.emp_mean + math.sqrt(2 * math.log(time + 1) / self.pulls)
+        return self.emp_mean + math.sqrt(2 * math.log(time + 1) / float(self.pulls))
     
     def bias(self, mu): # calculate bias of arm
-        return abs(self.emp_mean-mu)
+        return self.emp_mean-mu
         
  
 def decide(arms, time): #return index of chosen arm  
@@ -58,7 +61,7 @@ def exploited_arm(arms): #determine which arm bandit exploited most
 def bias_stats(arms): #returns dict holding bias of empirical mean of each arm in arms
     biases = []
     for i in range(len(arms)):
-        biases.append(arms[i].bias(0.5+i))
+        biases.append(arms[i].bias(0.5+i+1))
     return biases
 
 
@@ -88,6 +91,7 @@ def main():
         arms = [] #list of all arms
         reward = 0  # cumulative reward
         regret = 0 # cumulative regret
+        bestArm_r = 0
         
         #populate arms[]
         init_arms(num_arms, arms)    
@@ -96,47 +100,48 @@ def main():
         r_sheet.cell(row = 1, column = i).value = "Sim"+str(i)
         
         for k in range(num_arms): #play each arm once
-            reward += arms[k].pull()
-            regret = (k+1)*(0.5+num_arms)-reward
+            gain = arms[k].pull()
+            reward += gain
+            if k == num_arms-1:
+                bestArm_r += gain
+            else:
+                bestArm_r += arms[num_arms-1].pull(strict=True)
+                regret = bestArm_r -reward
             r_sheet.cell(row = k+2, column = i).value = float(regret)
         #run rest of simulation
         while(time < horizon): # employ UCB1 algorithm each following round
             choice = decide(arms, time)
             #track cumulative reward & regret
-            reward += arms[choice].pull()
-            regret = (time+1)*(0.5+num_arms)-reward
+            gain = arms[choice].pull()
+            reward += gain
+            if choice == num_arms-1:
+                bestArm_r += gain
+            else:
+                bestArm_r += arms[num_arms-1].pull(strict=True)
+                regret = bestArm_r -reward
             r_sheet.cell(row = time+2, column = i).value = float(regret)
             time += 1
         
         #output bias stats to excel sheet
-        biases = bias_stats(arms) #calculate arm bias stats 
+        biases = bias_stats(arms) #calculate arm bias stats
         for j in range(num_arms): #print stats
+#            b_sheet.cell(row = i+1, column = j+1).value = float(arms[j].emp_mean)
             b_sheet.cell(row = i+1, column = j+1).value = float(biases[j])
         
             
     #save wkbk data
-    data_wkbk.save("/Users/edenzackey/Documents/BanditSimData/simulations.xlsx")    
+    data_wkbk.save("/Users/edenzackey/Documents/BanditSimData/simulations.xlsx")
   
-     
-#    #plot point-wise cumulative regret
-#    
-#    plt.plot(regret, label='optimal arm Distrbn = N(5.5, 1)')
-#    plt.xlabel('Time-step t')
-#    plt.ylabel('Cumulative Regret')
-#    plt.title('Cumulative Regret Over Time')
-#    plt.show()
-#    
-#
-#   
-#    #FOR INITIAL TESTING PURPOSES
-#    
+        
+    #FOR INITIAL TESTING PURPOSES
+    
 #    #general statistics
 #    exploited = exploited_arm(arms)+1 # bandit's selected optimal arm
 #    print("===============================Simulation Stats================================")
 #    print("")
 #    print("Total reward: "+str(reward))
 #    print("")
-#    print("Total regret: "+str(regret[horizon-1]))
+#    print("Total regret: "+str(bestArm_r)
 #    print("")
 #    print("Most exploited arm: "+str(exploited))
 #    print("")
