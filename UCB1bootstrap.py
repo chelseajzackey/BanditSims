@@ -23,7 +23,7 @@ class Arm:
         if strict==False:
             self.pulls += 1
             self.rewards = np.append(self.rewards, [samp])
-            self.emp_mean = self.bootstrap_emp_mean(t+1)
+            self.emp_mean = self.bootstrap_emp_mean(t)
         return samp    
     
     def compute_index(self, time): #calculate UCB1 upper bound of arm 
@@ -32,19 +32,25 @@ class Arm:
     def bias(self, mu): # calculate bias of arm
         return self.emp_mean-mu
     
-    def bootstrap_emp_mean(self, t): #use bootstrapping to calculate empirical mean of arm
+    def bootstrap_emp_mean(self, t): #use bootstrapping to calculate bias of empirical mean for arm
         # bootstrap sample size = time of simulation
         # repititions = 50
+        emean = np.mean(self.rewards)
         count = 0
         empmeans = np.array([], dtype=float)
         while count < 50:
-            boot_samp = np.random.choice(self.rewards, size=t)
+            boot_samp = np.random.choice(self.rewards, size=t+1)
             empmeans = np.append(empmeans, [np.mean(boot_samp)])
             count +=1
-        return np.mean(empmeans)
-            
+        bmean = np.mean(empmeans)
+        bias = bmean - emean
+        return emean - bias
+     
+#    def marginal_prob(self, t):
+#        # compute marginal probability of selecting arm i at round t
+#        return float(self.pulls/t+1)
         
- 
+
 def decide(arms, time): #return index of chosen arm  
     play_arm = 0
     max_index = arms[0].compute_index(time)
